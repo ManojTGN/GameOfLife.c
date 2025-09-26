@@ -2,8 +2,8 @@
 
 This is a **Conway's Game of Life** implementation written purely in **C**, designed to run on **Windows, Linux, and Unix** system's `Terminal`.
 
-![GameOfLife-Rocket](https://github.com/user-attachments/assets/d674c48c-5c8b-4f57-be84-2322e4a806d5)
-![GameOfLife-HoneyBee](https://github.com/user-attachments/assets/828e1801-0355-4b97-9088-029b229e6b0b)
+<img src="https://github.com/user-attachments/assets/d674c48c-5c8b-4f57-be84-2322e4a806d5" width="100%" />
+<img src="https://github.com/user-attachments/assets/828e1801-0355-4b97-9088-029b229e6b0b" width="100%" />
 
 ## Features
 - Works on **Windows, Linux, and Unix** terminals.
