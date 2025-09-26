@@ -16,6 +16,13 @@
 
 #define CLEAR_SCREEN "\x1b[2J\x1b[H"
 
+typedef enum cellStatus{
+    ALIVE = 1,
+    DEAD  = 2,
+    NONE  = ' '
+} CELL_STATUS;
+
+
 typedef struct gameOfLife {
     int width;
     int height;
@@ -47,55 +54,91 @@ GAMEOFLIFE* createWorld(){
     #endif
 
     gameOfLife->world = (char*) calloc(gameOfLife->height * gameOfLife->width, sizeof(char));
-    memset(gameOfLife->world, ' ', gameOfLife->height * gameOfLife->width * sizeof(char));
+    memset(gameOfLife->world, NONE, gameOfLife->height * gameOfLife->width * sizeof(char));
     
     return gameOfLife;
 }
 
 void createLife(GAMEOFLIFE* gameOfLife){
-    gameOfLife->world[
-        gameOfLife->cursorY * gameOfLife->width + gameOfLife->cursorX
-    ] = '#';
+    gameOfLife->world[gameOfLife->cursorY * gameOfLife->width + gameOfLife->cursorX] = ALIVE;
+    gameOfLife->population ++;
+}
+
+int getNeighborsCount(GAMEOFLIFE* gameOfLife, int index){
+    int count = 0;
+    int x = index % gameOfLife->width;
+    int y = index / gameOfLife->width;
+
+    for(int i = -1; i <= 1; i++){
+    for(int j = -1; j <= 1; j++){
+        // printf("(%d,%d)\n",x+i, y+j);
+
+        if( (x+i != x && y+j != y) && 
+            (x+i >= 0 && x+i < gameOfLife->width) &&
+            (y+j >= 0 && y+j < gameOfLife->height) && 
+            gameOfLife->world[ ((y+i) * gameOfLife->width) + (x+j) ] == ALIVE) 
+            count++;
+    }
+    }
+
+    return count;
 }
 
 void handleWorld(GAMEOFLIFE* gameOfLife){
+    bool isLifeUpdated = false;
 
+    for(int i = 0; i < gameOfLife->width*gameOfLife->height + gameOfLife->height; ++i){
+        char cell = gameOfLife->world[i];
+        if(cell == ALIVE || cell == DEAD){
+            bool isAlive = cell == ALIVE;
+            int count = getNeighborsCount(gameOfLife, i);
+            
+            if(isAlive && (count < 1 || count >= 4)){
+                gameOfLife->world[i] = DEAD;
+                isLifeUpdated = true;
+            }else if(!isAlive && count == 3){
+                gameOfLife->world[i] = ALIVE;
+                isLifeUpdated = true;
+            }
+        }
+    }
+
+    if(isLifeUpdated)
+        gameOfLife->generation ++;
 }
 
 void handleInput(GAMEOFLIFE* gameOfLife){
     int keyPress = 0;
     #ifdef _WIN32
-        if (!_kbhit()) return;
-
-        int ch = _getch();
-        if (ch == 0 || ch == 224) {
-            ch = _getch();
-            switch (ch) {
-                case 72: //UP
-                    keyPress =  1; 
-                    break;
-                case 80: //DOWN
-                    keyPress =  2;
-                    break;
-                case 75: //LEFT
-                    keyPress =  3;
-                    break;
-                case 77: //RIGHT
-                    keyPress =  4;
-                    break;
-            }
-        }else{
-            switch (ch){
-                case 13: //ENTER
-                    keyPress =  5;
-                    break;
-                case ' ': //SPACE
-                    keyPress =  6;
-                    break;
+        if (_kbhit()){
+            int ch = _getch();
+            if (ch == 0 || ch == 224) {
+                ch = _getch();
+                switch (ch) {
+                    case 72: //UP
+                        keyPress =  1; 
+                        break;
+                    case 80: //DOWN
+                        keyPress =  2;
+                        break;
+                    case 75: //LEFT
+                        keyPress =  3;
+                        break;
+                    case 77: //RIGHT
+                        keyPress =  4;
+                        break;
+                }
+            }else{
+                switch (ch){
+                    case 13: //ENTER
+                        keyPress =  5;
+                        break;
+                    case ' ': //SPACE
+                        keyPress =  6;
+                        break;
+                }
             }
         }
-
-        
     #else
         struct termios oldt, newt;
         int ch;
@@ -165,6 +208,12 @@ void handleInput(GAMEOFLIFE* gameOfLife){
             gameOfLife->pause = !gameOfLife->pause;
             break;
     }
+
+    printf(
+        "\x1b[%i;%iH", 
+        gameOfLife->cursorY + 1,
+        gameOfLife->cursorX + 1
+    );
 }
 
 void render(GAMEOFLIFE* gameOfLife){
@@ -175,9 +224,11 @@ void render(GAMEOFLIFE* gameOfLife){
 		if (i % gameOfLife->width == 0){
 			index += sprintf(output + index, "\x1b[%i;%iH", (i / gameOfLife->width) + 1, (i % gameOfLife->width) + 1);
 		}
-
-		output[index] = gameOfLife->world[i];
-		index++;
+        
+        if(i < gameOfLife->width*gameOfLife->height){
+            output[index] = gameOfLife->world[i] == ALIVE? '0' + getNeighborsCount(gameOfLife,i):gameOfLife->world[i] == DEAD? '*':' ';
+            index++;
+        }
 	}
     output[index] = '\0';
 
@@ -194,15 +245,7 @@ int main(){
             render(gameOfLife);
             if(!gameOfLife->pause)  handleWorld(gameOfLife);
         }
-
         handleInput(gameOfLife);
-	    printf(
-            "\x1b[%i;%iH", 
-            gameOfLife->cursorY + 1,
-            gameOfLife->cursorX + 1
-        );
-        
-        // sleep(1);
         gameItr++;
     }
 
