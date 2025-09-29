@@ -118,13 +118,13 @@ int getInput(){
         if (ch != EOF) {
             ungetc(ch, stdin);
             int ch = getchar();
-            if (ch == 27) {  // ESC sequence
+            if (ch == 27) {
                 if (getchar() == '[') {
                     switch (getchar()) {
                         case 'A': keyPress =  ARROW_UP;break;
                         case 'B': keyPress =  ARROW_DOWN;break;
-                        case 'C': keyPress =  ARROW_LEFT;break;
-                        case 'D': keyPress =  ARROW_RIGHT;break;
+                        case 'C': keyPress =  ARROW_RIGHT;break;
+                        case 'D': keyPress =  ARROW_LEFT;break;
                     }
                 }else{
                     keyPress = ESC;
@@ -309,15 +309,15 @@ int handleInput(GAMEOFLIFE* gameOfLife){
  */
 int main(){
     uint64_t gameItr = 0;
-    int isCellsDancing = true;
+    bool isCellsDancing = true;
     GAMEOFLIFE* gameOfLife = createWorld();
 
-    while(isCellsDancing != ESC){
+    while(isCellsDancing){
         if(!gameOfLife->pause && gameItr % gameOfLife->worldSpeed == 0){
             handleWorld(gameOfLife);
             render(gameOfLife);
         }
-        isCellsDancing = handleInput(gameOfLife);
+        isCellsDancing = handleInput(gameOfLife) != ESC;
         gameItr++;
     }
 
@@ -329,5 +329,6 @@ int main(){
     #else
     write(STDOUT_FILENO, CLEAR_SCREEN, strlen(CLEAR_SCREEN));
     #endif
+
     return EXIT_SUCCESS;
 }
