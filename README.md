@@ -21,6 +21,7 @@ This is a **Conway's Game of Life** implementation written purely in **C**, desi
 | D         | Advance to the next iteration   |
 | Space     | Pause/Resume simulation         |
 | Enter     | Create a life at the cursor     |
+| Esc       | Exit the GameOfLife Simulation  |
 
 ## Build and Run
 
