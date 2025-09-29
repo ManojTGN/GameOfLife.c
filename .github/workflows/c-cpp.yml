@@ -6,9 +6,14 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
     - uses: actions/checkout@v4
-    - name: make
-      run: make
+    - uses: threeal/cmake-action@v2.1.0
+      with:
+        source-dir: .
+        build-dir: build
