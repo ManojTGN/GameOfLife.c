@@ -1,11 +1,10 @@
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64)
 #include <conio.h>
 #include <windows.h>
 #else
@@ -78,7 +77,7 @@ int getNeighborsCount(GAMEOFLIFE* gameOfLife, int index){
 
 int getInput(){
     int keyPress = 0;
-    #ifdef _WIN32
+    #if defined(_WIN32) || defined(_WIN64)
         if (_kbhit()){
             int ch = _getch();
             if (ch == 0 || ch == 224) {
@@ -166,15 +165,27 @@ void render(GAMEOFLIFE* gameOfLife){
 	}
     output[index] = '\0';
 
+
+    #if defined(_WIN32) || defined(_WIN64)
+    fwrite(CLEAR_SCREEN, 1, strlen(CLEAR_SCREEN),stdout);
+    fwrite(output, 1, strlen(output),stdout);
+    #else
     write(STDOUT_FILENO, CLEAR_SCREEN, strlen(CLEAR_SCREEN));
     write(STDOUT_FILENO,output,strlen(output));
+    #endif
+
 
     char* stats = (char*) calloc(gameOfLife->width + 1, sizeof(char));
     int statsCount = sprintf(stats, "Gen: %d | Pop: %d | Slow: %d | Pause: %d",gameOfLife->generation, gameOfLife->population, gameOfLife->worldSpeed, gameOfLife->pause);
     if(statsCount > gameOfLife->width){
         statsCount = sprintf(stats, "%d | %d | %d | %d",gameOfLife->generation, gameOfLife->population, gameOfLife->worldSpeed, gameOfLife->pause);
     }
+
+    #if defined(_WIN32) || defined(_WIN64)
+    fwrite(stats, 1, strlen(stats),stdout);
+    #else
     write(STDOUT_FILENO,stats,strlen(stats));
+    #endif
 }
 
 /*
@@ -187,7 +198,7 @@ void createLife(GAMEOFLIFE* gameOfLife){
 GAMEOFLIFE* createWorld(){
     GAMEOFLIFE* gameOfLife = (GAMEOFLIFE*) calloc(1,sizeof(GAMEOFLIFE));
 
-    #ifdef _WIN32
+    #if defined(_WIN32) || defined(_WIN64)
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
         if (!GetConsoleScreenBufferInfo(h, &csbi)) return NULL;
@@ -313,6 +324,10 @@ int main(){
     free(gameOfLife->world);
     free(gameOfLife);
 
+    #if defined(_WIN32) || defined(_WIN64)
+    fwrite(CLEAR_SCREEN, 1, strlen(CLEAR_SCREEN),stdout);
+    #else
     write(STDOUT_FILENO, CLEAR_SCREEN, strlen(CLEAR_SCREEN));
+    #endif
     return EXIT_SUCCESS;
 }
