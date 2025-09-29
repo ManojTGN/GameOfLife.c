@@ -23,4 +23,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: gameOfLife-${{ matrix.os }}
-        path: build/gameOfLife*
+        path: build/*
