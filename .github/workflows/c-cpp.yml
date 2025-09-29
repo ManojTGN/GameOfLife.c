@@ -20,7 +20,7 @@ jobs:
         cmake ..
         cmake --build .
     - name: Upload executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: gameOfLife-${{ matrix.os }}
         path: build/gameOfLife*
