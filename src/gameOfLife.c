@@ -15,14 +15,28 @@
 #include <sys/ioctl.h>
 #endif
 
+/*
+ * Constants 
+ */
+#define ALIVE '#'
+#define DEAD  ' '
+
 #define CLEAR_SCREEN "\x1b[2J\x1b[H"
-#define RENDER_ALIVE_CELL "\x1b[38;2;%d;%d;%dm\xE2\x96\x89\x1b[0m" //▉
+#define RENDER_ALIVE_CELL "\x1b[38;2;%d;%d;%dm\xE2\x96\x89\x1b[0m"
+//                          COLOR(RGB) + CELL + COLOR_RESET
 
-typedef enum cellStatus{
-    ALIVE = 1,
-    NONE  = ' '
-} CELL_STATUS;
-
+typedef enum Input {
+    ARROW_UP = 1,
+    ARROW_DOWN = 2,
+    ARROW_LEFT = 3,
+    ARROW_RIGHT = 4,
+    ENTER = 5,
+    SPACE = 6,
+    KEY_W = 7,
+    KEY_S = 8,
+    KEY_D = 9,
+    ESC = 10
+} _INPUT;
 
 typedef struct gameOfLife {
     int width;
@@ -39,34 +53,9 @@ typedef struct gameOfLife {
     bool pause;
 } GAMEOFLIFE;
 
-GAMEOFLIFE* createWorld(){
-    GAMEOFLIFE* gameOfLife = (GAMEOFLIFE*) calloc(1,sizeof(GAMEOFLIFE));
-
-    #ifdef _WIN32
-        CONSOLE_SCREEN_BUFFER_INFO csbi;
-        HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (!GetConsoleScreenBufferInfo(h, &csbi)) return NULL;
-        gameOfLife->width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-        gameOfLife->height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-    #else
-        struct winsize w;
-        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) return NULL;
-        gameOfLife->width = w.ws_col;
-        gameOfLife->height = w.ws_row;
-    #endif
-
-    gameOfLife->height--; //For Showing Stats
-    gameOfLife->worldSpeed = 100;
-    gameOfLife->world = (char*) calloc(gameOfLife->height * gameOfLife->width, sizeof(char));
-    memset(gameOfLife->world, NONE, gameOfLife->height * gameOfLife->width * sizeof(char));
-    
-    return gameOfLife;
-}
-
-void createLife(GAMEOFLIFE* gameOfLife){
-    gameOfLife->world[gameOfLife->cursorY * gameOfLife->width + gameOfLife->cursorX] = ALIVE;
-}
-
+/*
+ * Util Functions 
+ */
 int getNeighborsCount(GAMEOFLIFE* gameOfLife, int index){
     int count = 0;
     int x = index % gameOfLife->width;
@@ -87,36 +76,72 @@ int getNeighborsCount(GAMEOFLIFE* gameOfLife, int index){
     return count;
 }
 
-void handleWorld(GAMEOFLIFE* gameOfLife){
-    int population = 0;
-    bool isLifeUpdated = false;
-
-    char* world = (char*) calloc(gameOfLife->height * gameOfLife->width, sizeof(char));
-    memset(world, NONE, gameOfLife->height * gameOfLife->width * sizeof(char));
-
-    for(int i = 0; i < gameOfLife->width*gameOfLife->height; ++i){
-        char cell = gameOfLife->world[i];
-        bool isAlive = cell == ALIVE;
-        int count = getNeighborsCount(gameOfLife, i);
-        
-        if(isAlive && (count <= 1 || count >= 4)){
-            world[i] = NONE;
-            isLifeUpdated = true;
-        }else if(!isAlive && count == 3){
-            world[i] = ALIVE;
-            isLifeUpdated = true;
-        }else{
-            world[i] = gameOfLife->world[i];
+int getInput(){
+    int keyPress = 0;
+    #ifdef _WIN32
+        if (_kbhit()){
+            int ch = _getch();
+            if (ch == 0 || ch == 224) {
+                ch = _getch();
+                switch (ch) {
+                    case 72:keyPress =  ARROW_UP; break;
+                    case 80:keyPress =  ARROW_DOWN;break;
+                    case 75:keyPress =  ARROW_LEFT;break;
+                    case 77:keyPress =  ARROW_RIGHT;break;
+                }
+            }else{
+                switch (ch){
+                    case 27:keyPress = ESC;break;
+                    case 13:keyPress =  ENTER;break;
+                    case ' ':keyPress =  SPACE;break;
+                    case 'w': case 'W':keyPress = KEY_W;break;
+                    case 's': case 'S':keyPress = KEY_S;break;
+                    case 'd': case 'D':keyPress = KEY_D;break;
+                }
+            }
         }
-        
-        if(world[i] == ALIVE) population++;
-    }
+    #else
+        struct termios oldt, newt;
+        int ch;
+        int oldf;
 
-    strncpy(gameOfLife->world,world, sizeof(char) * gameOfLife->width*gameOfLife->height);
-    gameOfLife->population = population;
+        tcgetattr(STDIN_FILENO, &oldt);
+        newt = oldt;
+        newt.c_lflag &= ~(ICANON | ECHO);
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+        oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+        fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
 
-    if(isLifeUpdated)
-        gameOfLife->generation ++;
+        ch = getchar();
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+        fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+        if (ch != EOF) {
+            ungetc(ch, stdin);
+            int ch = getchar();
+            if (ch == 27) {  // ESC sequence
+                if (getchar() == '[') {
+                    switch (getchar()) {
+                        case 'A': keyPress =  ARROW_UP;break;
+                        case 'B': keyPress =  ARROW_DOWN;break;
+                        case 'C': keyPress =  ARROW_LEFT;break;
+                        case 'D': keyPress =  ARROW_RIGHT;break;
+                    }
+                }else{
+                    keyPress = ESC;
+                }
+            }else{
+                switch (ch){
+                    case '\n':keyPress = ENTER;break;
+                    case ' ':keyPress = SPACE;break;
+                    case 'w': case 'W':keyPress = KEY_W;break;
+                    case 's': case 'S':keyPress = KEY_S;break;
+                    case 'd': case 'D':keyPress = KEY_D;break;
+                }
+            }
+        }
+    #endif
+    return keyPress;
 }
 
 void render(GAMEOFLIFE* gameOfLife){
@@ -149,145 +174,110 @@ void render(GAMEOFLIFE* gameOfLife){
     if(statsCount > gameOfLife->width){
         statsCount = sprintf(stats, "%d | %d | %d | %d",gameOfLife->generation, gameOfLife->population, gameOfLife->worldSpeed, gameOfLife->pause);
     }
-    if(statsCount > gameOfLife->width){
-        statsCount = sprintf(stats, "Need Space For Stats!");
-    }
-    if(statsCount > gameOfLife->width){
-        statsCount = sprintf(stats, "!Space!");
-    }
     write(STDOUT_FILENO,stats,strlen(stats));
 }
 
+/*
+ * Create Functions 
+ */
+void createLife(GAMEOFLIFE* gameOfLife){
+    gameOfLife->world[gameOfLife->cursorY * gameOfLife->width + gameOfLife->cursorX] = ALIVE;
+}
 
-void handleInput(GAMEOFLIFE* gameOfLife){
-    int keyPress = 0;
+GAMEOFLIFE* createWorld(){
+    GAMEOFLIFE* gameOfLife = (GAMEOFLIFE*) calloc(1,sizeof(GAMEOFLIFE));
+
     #ifdef _WIN32
-        if (_kbhit()){
-            int ch = _getch();
-            if (ch == 0 || ch == 224) {
-                ch = _getch();
-                switch (ch) {
-                    case 72: //UP
-                        keyPress =  1; 
-                        break;
-                    case 80: //DOWN
-                        keyPress =  2;
-                        break;
-                    case 75: //LEFT
-                        keyPress =  3;
-                        break;
-                    case 77: //RIGHT
-                        keyPress =  4;
-                        break;
-                }
-            }else{
-                switch (ch){
-                    case 13: //ENTER
-                        keyPress =  5;
-                        break;
-                    case ' ':
-                        keyPress =  6;
-                        break;
-                    case 'w': case 'W':
-                        keyPress = 7;
-                        break;
-                    case 's': case 'S':
-                        keyPress = 8;
-                        break;
-                    case 'd': case 'D':
-                        keyPress = 9;
-                        break;
-                }
-            }
-        }
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (!GetConsoleScreenBufferInfo(h, &csbi)) return NULL;
+        gameOfLife->width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+        gameOfLife->height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
     #else
-        struct termios oldt, newt;
-        int ch;
-        int oldf;
-
-        tcgetattr(STDIN_FILENO, &oldt);
-        newt = oldt;
-        newt.c_lflag &= ~(ICANON | ECHO);
-        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-        oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-        fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-
-        ch = getchar();
-        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-        fcntl(STDIN_FILENO, F_SETFL, oldf);
-
-        if (ch != EOF) {
-            ungetc(ch, stdin);
-            int ch = getchar();
-            if (ch == 27) {  // ESC sequence
-                if (getchar() == '[') {
-                    switch (getchar()) {
-                        case 'A': 
-                            keyPress =  1;
-                            break;
-                        case 'B': 
-                            keyPress =  2;
-                            break;
-                        case 'C': 
-                            keyPress =  3;
-                            break;
-                        case 'D': 
-                            keyPress =  4;
-                            break;
-                    }
-                }
-            }else{
-                switch (ch){
-                    case '\n':
-                        keyPress = 5;
-                        break;
-                    case ' ':
-                        keyPress = 6;
-                        break;
-                    case 'w': case 'W':
-                        keyPress = 7;
-                        break;
-                    case 's': case 'S':
-                        keyPress = 8;
-                        break;
-                    case 'd': case 'D':
-                        keyPress = 9;
-                        break;
-                }
-            }
-        }
+        struct winsize w;
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) return NULL;
+        gameOfLife->width = w.ws_col;
+        gameOfLife->height = w.ws_row;
     #endif
 
+    gameOfLife->height--; //For Showing Stats
+    gameOfLife->worldSpeed = 100;
+    gameOfLife->world = (char*) calloc(gameOfLife->height * gameOfLife->width, sizeof(char));
+    memset(gameOfLife->world, DEAD, gameOfLife->height * gameOfLife->width * sizeof(char));
+    
+    return gameOfLife;
+}
+
+/*
+ * Handler Functions 
+ */
+void handleWorld(GAMEOFLIFE* gameOfLife){
+    int population = 0;
+    bool isLifeUpdated = false;
+
+    char* world = (char*) calloc(gameOfLife->height * gameOfLife->width, sizeof(char));
+    memset(world, DEAD, gameOfLife->height * gameOfLife->width * sizeof(char));
+
+    for(int i = 0; i < gameOfLife->width*gameOfLife->height; ++i){
+        char cell = gameOfLife->world[i];
+        bool isAlive = cell == ALIVE;
+        int count = getNeighborsCount(gameOfLife, i);
+        
+        if(isAlive && (count <= 1 || count >= 4)){
+            world[i] = DEAD;
+            isLifeUpdated = true;
+        }else if(!isAlive && count == 3){
+            world[i] = ALIVE;
+            isLifeUpdated = true;
+        }else{
+            world[i] = gameOfLife->world[i];
+        }
+        
+        if(world[i] == ALIVE) population++;
+    }
+
+    strncpy(gameOfLife->world,world, sizeof(char) * gameOfLife->width*gameOfLife->height);
+    gameOfLife->population = population;
+
+    if(isLifeUpdated)
+        gameOfLife->generation ++;
+}
+
+int handleInput(GAMEOFLIFE* gameOfLife){
+    int keyPress = getInput();
+
     switch(keyPress){
-        case 1:
+        case ARROW_UP:
             gameOfLife->cursorY = gameOfLife->cursorY != 0? gameOfLife->cursorY - 1 : 0;
             break;
-        case 2:
+        case ARROW_DOWN:
             gameOfLife->cursorY = gameOfLife->cursorY != gameOfLife->height - 1? gameOfLife->cursorY + 1 : gameOfLife->cursorY;
             break;
-        case 3:
+        case ARROW_LEFT:
             gameOfLife->cursorX = gameOfLife->cursorX != 0? gameOfLife->cursorX - 1 : 0;
             break;
-        case 4:
+        case ARROW_RIGHT:
             gameOfLife->cursorX = gameOfLife->cursorX != gameOfLife->width - 1? gameOfLife->cursorX + 1 : gameOfLife->cursorX;
             break;
-        case 5:
+        
+        case ENTER:
             createLife(gameOfLife);
-            if(gameOfLife->pause) render(gameOfLife);
+            render(gameOfLife);
             break;
-        case 6:
+        case SPACE:
             gameOfLife->pause = !gameOfLife->pause;
-            if(gameOfLife->pause) render(gameOfLife);
+            render(gameOfLife);
             break;
-        case 7:
+        
+        case KEY_W:
             gameOfLife->worldSpeed = gameOfLife->worldSpeed - 25 <= 0 ? 25 : gameOfLife->worldSpeed - 25;
-            if(gameOfLife->pause) render(gameOfLife);
+            render(gameOfLife);
             break;
-        case 8:
+        case KEY_S:
             gameOfLife->worldSpeed = gameOfLife->worldSpeed + 25 > 2000 ? 2000 : gameOfLife->worldSpeed + 25;
-            if(gameOfLife->pause) render(gameOfLife);
+            render(gameOfLife);
             break;
-        case 9:
+        case KEY_D:
             gameOfLife->pause = true;
             handleWorld(gameOfLife);
             render(gameOfLife);
@@ -299,20 +289,30 @@ void handleInput(GAMEOFLIFE* gameOfLife){
         gameOfLife->cursorY + 1,
         gameOfLife->cursorX + 1
     );
+
+    return keyPress;
 }
 
+/*
+ * Main Functions 
+ */
 int main(){
     uint64_t gameItr = 0;
+    int isCellsDancing = true;
     GAMEOFLIFE* gameOfLife = createWorld();
 
-    while(1){
+    while(isCellsDancing != ESC){
         if(!gameOfLife->pause && gameItr % gameOfLife->worldSpeed == 0){
             handleWorld(gameOfLife);
             render(gameOfLife);
         }
-        handleInput(gameOfLife);
+        isCellsDancing = handleInput(gameOfLife);
         gameItr++;
     }
 
-    return 0;
+    free(gameOfLife->world);
+    free(gameOfLife);
+
+    write(STDOUT_FILENO, CLEAR_SCREEN, strlen(CLEAR_SCREEN));
+    return EXIT_SUCCESS;
 }

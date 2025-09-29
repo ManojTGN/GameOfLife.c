@@ -38,6 +38,10 @@ This is a **Conway's Game of Life** implementation written purely in **C**, desi
     cmake ..
     cmake --build .
     ```
+3. Terminal Cell Issue
+    ```bash 
+    chcp 65001
+    ```
 
 ## License
 This project is licensed under the MIT License.  
