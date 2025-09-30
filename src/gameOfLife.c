@@ -34,7 +34,8 @@ typedef enum Input {
     KEY_W = 7,
     KEY_S = 8,
     KEY_D = 9,
-    ESC = 10
+    ESC = 10,
+    BACKSPACE = 11,
 } _INPUT;
 
 typedef struct gameOfLife {
@@ -49,7 +50,9 @@ typedef struct gameOfLife {
 
     char* world;
     int worldSpeed;
+
     bool pause;
+    bool utf8Support;
 } GAMEOFLIFE;
 
 /*
@@ -87,12 +90,14 @@ int getInput(){
                     case 80:keyPress =  ARROW_DOWN;break;
                     case 75:keyPress =  ARROW_LEFT;break;
                     case 77:keyPress =  ARROW_RIGHT;break;
+                    case 83: keyPress = BACKSPACE;break;
                 }
             }else{
                 switch (ch){
                     case 27:keyPress = ESC;break;
                     case 13:keyPress =  ENTER;break;
                     case ' ':keyPress =  SPACE;break;
+                    case 8:keyPress = BACKSPACE;break;
                     case 'w': case 'W':keyPress = KEY_W;break;
                     case 's': case 'S':keyPress = KEY_S;break;
                     case 'd': case 'D':keyPress = KEY_D;break;
@@ -136,6 +141,7 @@ int getInput(){
                     case 'w': case 'W':keyPress = KEY_W;break;
                     case 's': case 'S':keyPress = KEY_S;break;
                     case 'd': case 'D':keyPress = KEY_D;break;
+                    case 127: case 8:keyPress = BACKSPACE; break;
                 }
             }
         }
@@ -156,7 +162,11 @@ void render(GAMEOFLIFE* gameOfLife){
             if(gameOfLife->world[i] == ALIVE){
                 int x = i % gameOfLife->width;
                 int y = i / gameOfLife->width;
-                index += sprintf(output + index, RENDER_ALIVE_CELL, (x*255)/(gameOfLife->width-1), (y*255)/(gameOfLife->height-1), 128);
+
+                if(gameOfLife->utf8Support)
+                    index += sprintf(output + index, RENDER_ALIVE_CELL, (x*255)/(gameOfLife->width-1), (y*255)/(gameOfLife->height-1), 128);
+                else
+                    output[index++] = ALIVE;
             }else{
                 output[index] = ' ';
                 index++;
@@ -191,8 +201,10 @@ void render(GAMEOFLIFE* gameOfLife){
 /*
  * Create Functions 
  */
-void createLife(GAMEOFLIFE* gameOfLife){
-    gameOfLife->world[gameOfLife->cursorY * gameOfLife->width + gameOfLife->cursorX] = ALIVE;
+bool createOrDeleteLife(GAMEOFLIFE* gameOfLife, bool createLife){
+    char oldStatus = gameOfLife->world[gameOfLife->cursorY * gameOfLife->width + gameOfLife->cursorX];
+    gameOfLife->world[gameOfLife->cursorY * gameOfLife->width + gameOfLife->cursorX] = createLife? ALIVE: DEAD;
+    return (oldStatus == ALIVE && !createLife) || (oldStatus == DEAD && createLife);
 }
 
 GAMEOFLIFE* createWorld(){
@@ -204,11 +216,15 @@ GAMEOFLIFE* createWorld(){
         if (!GetConsoleScreenBufferInfo(h, &csbi)) return NULL;
         gameOfLife->width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
         gameOfLife->height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+
+        UINT cp = GetConsoleOutputCP();
+        gameOfLife->utf8Support = (cp == 65001);
     #else
         struct winsize w;
         if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) return NULL;
         gameOfLife->width = w.ws_col;
         gameOfLife->height = w.ws_row;
+        gameOfLife->utf8Support = true;
     #endif
 
     gameOfLife->height--; //For Showing Stats
@@ -272,8 +288,10 @@ int handleInput(GAMEOFLIFE* gameOfLife){
             break;
         
         case ENTER:
-            createLife(gameOfLife);
-            render(gameOfLife);
+            if(createOrDeleteLife(gameOfLife, true)) render(gameOfLife);
+            break;
+        case BACKSPACE:
+            if(createOrDeleteLife(gameOfLife, false)) render(gameOfLife);
             break;
         case SPACE:
             gameOfLife->pause = !gameOfLife->pause;
