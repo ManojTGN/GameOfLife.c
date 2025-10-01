@@ -21,7 +21,8 @@
 #define DEAD  ' '
 
 #define CLEAR_SCREEN "\x1b[2J\x1b[H"
-#define RENDER_ALIVE_CELL "\x1b[38;2;%d;%d;%dm\xE2\x96\x89\x1b[0m"
+#define RENDER_ALIVE_CELL "\x1b[38;2;%d;%d;%dm#\x1b[0m"
+#define RENDER_UTF8_ALIVE_CELL "\x1b[38;2;%d;%d;%dm\xE2\x96\x89\x1b[0m"
 //                          COLOR(RGB) + CELL + COLOR_RESET
 
 typedef enum Input {
@@ -34,8 +35,10 @@ typedef enum Input {
     KEY_W = 7,
     KEY_S = 8,
     KEY_D = 9,
-    ESC = 10,
-    BACKSPACE = 11,
+    KEY_C = 10,
+    KEY_N = 11,
+    ESC = 12,
+    BACKSPACE = 13,
 } _INPUT;
 
 typedef struct gameOfLife {
@@ -101,6 +104,8 @@ int getInput(){
                     case 'w': case 'W':keyPress = KEY_W;break;
                     case 's': case 'S':keyPress = KEY_S;break;
                     case 'd': case 'D':keyPress = KEY_D;break;
+                    case 'c': case 'C':keyPress = KEY_C;break;
+                    case 'n': case 'N':keyPress = KEY_N;break;
                 }
             }
         }
@@ -141,6 +146,8 @@ int getInput(){
                     case 'w': case 'W':keyPress = KEY_W;break;
                     case 's': case 'S':keyPress = KEY_S;break;
                     case 'd': case 'D':keyPress = KEY_D;break;
+                    case 'c': case 'C':keyPress = KEY_C;break;
+                    case 'n': case 'N':keyPress = KEY_N;break;
                     case 127: case 8:keyPress = BACKSPACE; break;
                 }
             }
@@ -151,7 +158,7 @@ int getInput(){
 
 void render(GAMEOFLIFE* gameOfLife){
     int index = 0;
-    char* output = (char*) calloc((gameOfLife->height * gameOfLife->width * 3) + (gameOfLife->height * 10) + 1, sizeof(char));
+    char* output = (char*) calloc((gameOfLife->height * gameOfLife->width * 15) + (gameOfLife->height * 15) + 1, sizeof(char));
     
     for (int i = 0; i < gameOfLife->width*gameOfLife->height + gameOfLife->height; ++i){
 		if (i % gameOfLife->width == 0){
@@ -164,9 +171,10 @@ void render(GAMEOFLIFE* gameOfLife){
                 int y = i / gameOfLife->width;
 
                 if(gameOfLife->utf8Support)
-                    index += sprintf(output + index, RENDER_ALIVE_CELL, (x*255)/(gameOfLife->width-1), (y*255)/(gameOfLife->height-1), 128);
+                    index += sprintf(output + index, RENDER_UTF8_ALIVE_CELL, (x*255)/(gameOfLife->width-1), (y*255)/(gameOfLife->height-1), 128);
                 else
-                    output[index++] = ALIVE;
+                    index += sprintf(output + index, RENDER_ALIVE_CELL, (x*255)/(gameOfLife->width-1), (y*255)/(gameOfLife->height-1), 128);
+                    // output[index++] = ALIVE;
             }else{
                 output[index] = ' ';
                 index++;
@@ -274,29 +282,17 @@ int handleInput(GAMEOFLIFE* gameOfLife){
     int keyPress = getInput();
 
     switch(keyPress){
-        case ARROW_UP:
-            gameOfLife->cursorY = gameOfLife->cursorY != 0? gameOfLife->cursorY - 1 : 0;
-            break;
-        case ARROW_DOWN:
-            gameOfLife->cursorY = gameOfLife->cursorY != gameOfLife->height - 1? gameOfLife->cursorY + 1 : gameOfLife->cursorY;
-            break;
-        case ARROW_LEFT:
-            gameOfLife->cursorX = gameOfLife->cursorX != 0? gameOfLife->cursorX - 1 : 0;
-            break;
-        case ARROW_RIGHT:
-            gameOfLife->cursorX = gameOfLife->cursorX != gameOfLife->width - 1? gameOfLife->cursorX + 1 : gameOfLife->cursorX;
-            break;
+        case ARROW_UP:   gameOfLife->cursorY = gameOfLife->cursorY != 0? gameOfLife->cursorY - 1 : 0;break;
+        case ARROW_DOWN: gameOfLife->cursorY = gameOfLife->cursorY != gameOfLife->height - 1? gameOfLife->cursorY + 1 : gameOfLife->cursorY;break;
+        case ARROW_LEFT: gameOfLife->cursorX = gameOfLife->cursorX != 0? gameOfLife->cursorX - 1 : 0;break;
+        case ARROW_RIGHT:gameOfLife->cursorX = gameOfLife->cursorX != gameOfLife->width - 1? gameOfLife->cursorX + 1 : gameOfLife->cursorX;break;
         
         case ENTER:
-            if(createOrDeleteLife(gameOfLife, true)) render(gameOfLife);
-            break;
+            if(createOrDeleteLife(gameOfLife, true)) render(gameOfLife);break;
         case BACKSPACE:
-            if(createOrDeleteLife(gameOfLife, false)) render(gameOfLife);
-            break;
+            if(createOrDeleteLife(gameOfLife, false)) render(gameOfLife);break;
         case SPACE:
-            gameOfLife->pause = !gameOfLife->pause;
-            render(gameOfLife);
-            break;
+            gameOfLife->pause = !gameOfLife->pause; render(gameOfLife);break;
         
         case KEY_W:
             gameOfLife->worldSpeed = gameOfLife->worldSpeed - 25 <= 0 ? 25 : gameOfLife->worldSpeed - 25;
@@ -309,6 +305,18 @@ int handleInput(GAMEOFLIFE* gameOfLife){
         case KEY_D:
             gameOfLife->pause = true;
             handleWorld(gameOfLife);
+            render(gameOfLife);
+            break;
+        case KEY_C:
+            free(gameOfLife->world);
+            gameOfLife->world = (char*) calloc(gameOfLife->height * gameOfLife->width, sizeof(char));
+            memset(gameOfLife->world, DEAD, gameOfLife->height * gameOfLife->width * sizeof(char));
+            render(gameOfLife);
+            break;
+        case KEY_N:
+            free(gameOfLife->world);
+            free(gameOfLife);
+            gameOfLife = createWorld();
             render(gameOfLife);
             break;
     }

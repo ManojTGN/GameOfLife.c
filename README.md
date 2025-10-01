@@ -19,8 +19,11 @@ This is a **Conway's Game of Life** implementation written purely in **C**, desi
 | W         | Increase simulation speed       |
 | S         | Decrease simulation speed       |
 | D         | Advance to the next iteration   |
+| C         | Clear all the cells from sim.   |
+| N         | Creates a new game of life sim. |
 | Space     | Pause/Resume simulation         |
 | Enter     | Create a life at the cursor     |
+| Backspace | Delete a life at the cursor     |
 | Esc       | Exit the GameOfLife Simulation  |
 
 ## Build and Run
