@@ -14,10 +14,11 @@ This is a **Conway's Game of Life** implementation written purely in **C**, desi
 ## Controls
 
 | Key       | Action                          |
-|-----------|--------------------------------|
+|-----------|---------------------------------|
 | Arrow Keys| Move the cursor                 |
 | W         | Increase simulation speed       |
 | S         | Decrease simulation speed       |
+| A         | Change color mode               |
 | D         | Advance to the next iteration   |
 | C         | Clear all the cells from sim.   |
 | N         | Creates a new game of life sim. |
@@ -42,11 +43,3 @@ This is a **Conway's Game of Life** implementation written purely in **C**, desi
     cmake ..
     cmake --build .
     ```
-3. Terminal Cell Issue
-    ```bash 
-    chcp 65001
-    ```
-
-## License
-This project is licensed under the MIT License.  
-Feel free to modify and use it as you like!
