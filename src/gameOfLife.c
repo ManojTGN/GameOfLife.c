@@ -353,7 +353,6 @@ GAMEOFLIFE* createWorld(){
         gameOfLife->utf8Support = true;
     #endif
 
-    gameOfLife->utf8Support = false;
     gameOfLife->height--; //For Showing Stats
     gameOfLife->worldSpeed = 300;
     gameOfLife->world = (uint16_t*) calloc(gameOfLife->height * gameOfLife->width, sizeof(uint16_t));
