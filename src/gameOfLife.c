@@ -249,44 +249,41 @@ void render(GAMEOFLIFE* gameOfLife){
 
                 char* render = (gameOfLife->utf8Support)?RENDER_UTF8_ALIVE_CELL:RENDER_ALIVE_CELL;
 
+                uint8_t r,g,b = 0;
                 switch (gameOfLife->colorMode){
                     case GRADIENT:
-                        index += sprintf(output + index, render, (x*255)/(gameOfLife->width-1), (y*255)/(gameOfLife->height-1), 128);
+                        r = (x*255)/(gameOfLife->width-1);
+                        g = (y*255)/(gameOfLife->height-1);
+                        b = 128;
                         break;
                     case LIFE_SPAN:
-                        uint8_t r,g,b = 0;
-                        if(gameOfLife->world[i] + 100 <= gameOfLife->generation){
-                            r = 255;g = b = 0;
-                        }else if(gameOfLife->world[i] + 50 <= gameOfLife->generation){
-                            r = g = 128;b = 0;
-                        }else{
-                            r = b = 0;g = 255;
-                        }
-                        index += sprintf(output + index, render, r, g, b);
+                        if(gameOfLife->world[i] + 100 <= gameOfLife->generation){ r = 255;g = b = 0; }
+                        else if(gameOfLife->world[i] + 50 <= gameOfLife->generation){ r = g = 128;b = 0; }
+                        else{ r = b = 0;g = 255; }
                         break;
                     case RANDOMIZE:
-                        uint8_t cr = (gameOfLife->world[i] * 15) % 255;
-                        uint8_t cg = ((gameOfLife->world[i]) * cr * 19) % 255;
-                        uint8_t cb = ((gameOfLife->world[i]) * cg * 24) % 255;
-                        index += sprintf(output + index, render, cr, cg, cb);
+                        r = (gameOfLife->world[i] * 15) % 255;
+                        g = ((gameOfLife->world[i]) * r * 19) % 255;
+                        b = ((gameOfLife->world[i]) * g * 24) % 255;
                         break;
                     case RED:
-                        index += sprintf(output + index, render, 255, 0, 0);
+                        r = 255; g = b = 0;
                         break;
                     case GREEN:
-                        index += sprintf(output + index, render, 0, 255, 0);
+                        r = b = 0;g = 255;
                         break;
                     case BLUE:
-                        index += sprintf(output + index, render, 0, 0, 255);
+                        r = g = 0; b = 255;
                         break;
                     case YELLOW:
-                        index += sprintf(output + index, render, 255, 255, 0);
+                        r = g = 255; b = 0;
                         break;
                     case WHITE:
                     default:
-                        index += sprintf(output + index, render, 255, 255, 255);
+                        r = g = b = 255;
                         break;
                 }
+                index += sprintf(output + index, render, r, g, b);
             }else{
                 output[index] = ' ';
                 index++;
