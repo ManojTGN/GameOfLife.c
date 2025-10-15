@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <conio.h>
@@ -18,6 +19,7 @@
  * Constants 
  */
 #define DEAD 0
+#define KNUTH_HASH 2654435761u
 #define CLEAR_SCREEN "\x1b[2J\x1b[H"
 #define RENDER_ALIVE_CELL "\x1b[38;2;%d;%d;%dm#\x1b[0m"
 #define RENDER_UTF8_ALIVE_CELL "\x1b[38;2;%d;%d;%dm\xE2\x96\x89\x1b[0m"
@@ -48,6 +50,7 @@ typedef enum Input {
     KEY_D,
     KEY_C,
     KEY_N,
+    KEY_R,
     ESC,
     BACKSPACE,
 } _INPUT;
@@ -119,6 +122,7 @@ int getInput(){
                     case 'd': case 'D':keyPress = KEY_D;break;
                     case 'c': case 'C':keyPress = KEY_C;break;
                     case 'n': case 'N':keyPress = KEY_N;break;
+                    case 'r': case 'R':keyPress = KEY_R;break;
                 }
             }
         }
@@ -162,6 +166,7 @@ int getInput(){
                     case 'd': case 'D':keyPress = KEY_D;break;
                     case 'c': case 'C':keyPress = KEY_C;break;
                     case 'n': case 'N':keyPress = KEY_N;break;
+                    case 'r': case 'R':keyPress = KEY_R;break;
                     case 127: case 8:keyPress = BACKSPACE; break;
                 }
             }
@@ -262,9 +267,9 @@ void render(GAMEOFLIFE* gameOfLife){
                         else{ r = b = 0;g = 255; }
                         break;
                     case RANDOMIZE:
-                        r = (gameOfLife->world[i] * 15) % 255;
-                        g = ((gameOfLife->world[i]) * r * 19) % 255;
-                        b = ((gameOfLife->world[i]) * g * 24) % 255;
+                        r = (((gameOfLife->world[i] * i * KNUTH_HASH) + 24) >> 8) & 0xFF;
+                        g = (((gameOfLife->world[i] * i * KNUTH_HASH) + 16) >> 16) & 0xFF;
+                        b = (((gameOfLife->world[i] * i * KNUTH_HASH) + 8) >> 24) & 0xFF;
                         break;
                     case RED:
                         r = 255; g = b = 0;
@@ -425,6 +430,13 @@ int handleInput(GAMEOFLIFE** gameOfLife){
             handleWorld((*gameOfLife));
             render((*gameOfLife));
             break;
+        case KEY_R:
+            for(int i = 0; i < (*gameOfLife)->width * (*gameOfLife)->height; i++){
+                if((*gameOfLife)->world[i] == DEAD)
+                    (*gameOfLife)->world[i] = (rand() % 100) < 10 ? (*gameOfLife)->generation + 1 :DEAD;
+            }
+            render((*gameOfLife));
+            break;
 
         case KEY_C:
             free((*gameOfLife)->world);
@@ -453,6 +465,7 @@ int handleInput(GAMEOFLIFE** gameOfLife){
  * Main Functions 
  */
 int main(){
+    srand(time(NULL));
     uint64_t gameItr = 0;
     bool isCellsDancing = true;
     GAMEOFLIFE* gameOfLife = createWorld();
