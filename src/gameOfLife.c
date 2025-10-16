@@ -176,7 +176,6 @@ int getInput(){
 }
 
 char* getColorModeName(GAMEOFLIFE* gameOfLife){
-
     switch(gameOfLife->colorMode){
         case GRADIENT: return "Gradient";
         case LIFE_SPAN: return "LifeSpan";
@@ -240,11 +239,12 @@ char* getColorModeColor(GAMEOFLIFE* gameOfLife){
 
 void render(GAMEOFLIFE* gameOfLife){
     int index = 0;
-    char* output = (char*) calloc((gameOfLife->height * gameOfLife->width * 15) + (gameOfLife->height * 15) + 1, sizeof(char));
+    char* output = (char*) calloc((gameOfLife->height * gameOfLife->width * 27) + (gameOfLife->height * 1) + 1, sizeof(char));
     
     for (int i = 0; i < gameOfLife->width*gameOfLife->height + gameOfLife->height; ++i){
 		if (i % gameOfLife->width == 0){
-			index += sprintf(output + index, "\x1b[%i;%iH", (i / gameOfLife->width) + 1, (i % gameOfLife->width) + 1);
+			// index += sprintf(output + index, "\x1b[%i;%iH", (i / gameOfLife->width) + 1, (i % gameOfLife->width) + 1);
+			index += sprintf(output + index, "\n");
 		}
         
         if(i < gameOfLife->width*gameOfLife->height){
@@ -267,9 +267,9 @@ void render(GAMEOFLIFE* gameOfLife){
                         else{ r = b = 0;g = 255; }
                         break;
                     case RANDOMIZE:
-                        r = (((gameOfLife->world[i] * i * KNUTH_HASH) + 24) >> 8) & 0xFF;
-                        g = (((gameOfLife->world[i] * i * KNUTH_HASH) + 16) >> 16) & 0xFF;
-                        b = (((gameOfLife->world[i] * i * KNUTH_HASH) + 8) >> 24) & 0xFF;
+                        r = ((((gameOfLife->world[i] + i) * KNUTH_HASH) + 24) >>  8) & 0xFF;
+                        g = ((((gameOfLife->world[i] + i) * KNUTH_HASH) + 16) >> 16) & 0xFF;
+                        b = ((((gameOfLife->world[i] + i) * KNUTH_HASH) +  8) >> 24) & 0xFF;
                         break;
                     case RED:
                         r = 255; g = b = 0;
